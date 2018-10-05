@@ -1,10 +1,13 @@
 
 # coding: utf-8
 
-# In[6]:
+# In[19]:
 
+
+import os
 
 filePath = 'C://Users//*USERNAME*//AppData//Local//FortniteGame//Saved//Demos//'
+
 replayFileName = 'TEST_SAMPLE.replay'
 #replayFileName = 'UnsavedReplay-2018.09.29-20.01.57.replay'
 #replayFileName = 'UnsavedReplay-2018.10.01-21.19.57.replay'
@@ -28,10 +31,10 @@ def getInt(data,idx,len):
     return(int.from_bytes( data[idx:idx+len], byteorder='little', signed=True ) )
 
 
-nameList = []
+#nameList = []
 
 
-def processPlayerElim(data, idx):
+def processPlayerElim(data, idx, nList):
     tag1_len = getInt(data,idx,4)
     
     tag2_len = getInt(data,idx+15,4)
@@ -46,23 +49,25 @@ def processPlayerElim(data, idx):
        
 
     name1_len = getInt(data,idx+91,4)
-    
-
-    
 
 
     name2offset = 0
     name1=None
     
     if name1_len<0:
-        if name1_len==-7:
-            name2offset += 4 + 14
-        elif name1_len==-8:
-            name2offset += 4 + 16
-        else:
-            print( 'Neg name 1 len at offset', format(idx,'#04x') )
-            print('name1_len', name1_len)
-            raise ValueError( 'ENCOUNTERED UNKNOWN NEG PLAYER1 NAME LEN' )
+        name2offset = 4+ name1_len*-2
+        #if name1_len==-6:
+        #    name2offset += 4 + 12
+        #elif name1_len==-7:
+        #    name2offset += 4 + 14
+        #elif name1_len==-8:
+        #    name2offset += 4 + 16
+        #elif name1_len==-12:
+        #    name2offset += 32-4
+        #else:
+        #    print( 'Neg name 1 len at offset', format(idx,'#04x') )
+        #    print('name1_len', name1_len)
+        #    raise ValueError( 'ENCOUNTERED UNKNOWN NEG PLAYER1 NAME LEN' )
     else:
         name1=getStringStripNull(data, idx+91+4, name1_len)
         name2offset += 4 + name1_len
@@ -79,39 +84,57 @@ def processPlayerElim(data, idx):
         name2=getStringStripNull(data, idx+91+4+name2offset, name2_len)
         
     if name1 is not None:
-        nameList.append(name1)        
+        nList.append(name1)        
         
     if name2 is not None:
-        nameList.append(name2)
-
+        nList.append(name2)
         
     #print(name1,name2)
     
-    
+def getPlayerList( fPath, fName):
 
-with open(filePath + replayFileName, "rb") as binary_file:
-    data = binary_file.read()
+    with open(fPath + fName, "rb") as binary_file:
+        data = binary_file.read()
+
+    nextIndex = 0
+    nameList = []
+    #print('---------')
+    while True:
+        #print('...')
+        nextIndex = data.find( bytes('playerElim','utf-8'),nextIndex+1)
+        if nextIndex<0:
+            break;
+        processPlayerElim(data,nextIndex-4,nameList)
 
 
+    nameList = list(set(nameList))
+    nameList.sort()
+    return( nameList )
 
-nextIndex = 0
-nameList = []
-#print('---------')
-while True:
-    #print('...')
-    nextIndex = data.find( bytes('playerElim','utf-8'),nextIndex+1)
-    if nextIndex<0:
-        break;
-    processPlayerElim(data,nextIndex-4)
-    
-    
-nameList = list(set(nameList))
-nameList.sort()
+def processAllReplays(fPath):
+    #nlist=[]
+    fileList = os.listdir( fPath)
+    for f in fileList:
+        if not os.path.isdir(fPath+f) and f.endswith('.replay'):
+            print('PlayerList for file:',f)
+            nList=getPlayerList(fPath,f)
+            print()
+            print("Player Count:",len(nList))
+            print('----------')
+            for p in nList:
+                print(p)    
+        
+#processAllReplays(filePath)
+
+nameList = getPlayerList(filePath,replayFileName)
 print("Player Count:",len(nameList))
 print()
 print('PlayerList')
 print('----------')
 for p in nameList:
     print(p)    
+    
+    
+    
     
 
